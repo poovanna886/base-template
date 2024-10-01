@@ -1,107 +1,51 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import {Button} from '@/components/ui/button';
-import M1 from '@/rlhf-tasks/40917/ModelA/Response';
-import M2 from '@/rlhf-tasks/40917/ModelB/Response';
-import IR from '@/rlhf-tasks/40917/IdealResponse/Response';
-const index = () => {
-  const openM1 = () => {
-         // Open a new tab (not window) in Chrome
-         const newTab = window.open('', '_blank'); // Use _blank to open in a new tab
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import {Button} from '@/components/ui/button'
+import M1 from '@/rlhf-tasks/40917/1a.jsx';
+import M2 from '@/rlhf-tasks/40917/1b.jsx';
+import Mideal from '@/rlhf-tasks/40917/1Ideal.jsx';
 
-         if (newTab) {
-             // Set the title for the new tab
-             newTab.document.title = 'New Tab with React Component';
- 
-             // Create a container div for the React component
-             const div = newTab.document.createElement('div');
-             div.id = 'new-tab-root';
-             newTab.document.body.appendChild(div);
- 
-             // Render the React component in the new tab using createRoot
-             const root = createRoot(div);
-             root.render(<M1 />);
- 
-             // Clean up the component when the tab is closed
-             newTab.onbeforeunload = () => {
-                 root.unmount();
-             };
- 
-             // Close document to signal the end of loading
-             newTab.document.close();
-         }
-};
-
-const openM2 = () => {
- // Open a new tab (not window) in Chrome
- const newTab = window.open('', '_blank'); // Use _blank to open in a new tab
-
- if (newTab) {
-     // Set the title for the new tab
-     newTab.document.title = 'New Tab with React Component';
-
-     // Create a container div for the React component
-     const div = newTab.document.createElement('div');
-     div.id = 'new-tab-root';
-     newTab.document.body.appendChild(div);
-
-     // Render the React component in the new tab using createRoot
-     const root = createRoot(div);
-     root.render(<M2 />);
-
-     // Clean up the component when the tab is closed
-     newTab.onbeforeunload = () => {
-         root.unmount();
-     };
-
-     // Close document to signal the end of loading
-     newTab.document.close();
- }
-};
-const openIR = () => {
-  // Open a new tab (not window) in Chrome
-  const newTab = window.open('', '_blank'); // Use _blank to open in a new tab
-
-  if (newTab) {
-      // Set the title for the new tab
-      newTab.document.title = 'New Tab with React Component';
-
-      // Create a container div for the React component
-      const div = newTab.document.createElement('div');
-      div.id = 'new-tab-root';
-      newTab.document.body.appendChild(div);
-
-      // Render the React component in the new tab using createRoot
-      const root = createRoot(div);
-      root.render(<IR />);
-
-      // Clean up the component when the tab is closed
-      newTab.onbeforeunload = () => {
-          root.unmount();
-      };
-
-      // Close document to signal the end of loading
-      newTab.document.close();
-  }
-};
-
+function Layout() {
   return (
-    <div className="flex justify-center items-center h-screen">
-    <Card className="w-[500px]">
-      <CardHeader>
-        <CardTitle>#40917</CardTitle>
-        </CardHeader>
-      <CardContent>
-      <Button onClick={openM1} className="m-2">Model A</Button>
-      <Button onClick={openM2} className="m-2">Model B</Button>
-      <Button onClick={openIR} className="m-2">Ideal Response</Button>
-
-      
-      </CardContent>
-    </Card>
-  </div>
-   )
+    <div className="flex flex-col items-center">
+      <h1 className="text-2xl mb-8 font-bold">Welcome to the Homepage</h1>
+      <div className="space-y-4">
+        <Link to="/M1">
+          <Button className="hover:bg-blue-600">
+            Model A
+          </Button>
+        </Link>
+        <Link to="/M2">
+          <Button className="hover:bg-blue-600">
+            Model B
+          </Button>
+        </Link>
+        <Link to="/Mideal">
+          <Button className="hover:bg-blue-600">
+            Ideal Response
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
 }
 
-export default index
+function Index() {
+  return (
+    <Router>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        {/* Always render Layout, and below it display the active component */}
+        <Layout />
+        <div className="mt-8">
+          <Routes>
+            <Route path="/M1" element={<M1 />} />
+            <Route path="/M2" element={<M2 />} />
+            <Route path="/Mideal" element={<Mideal />} />
+          </Routes>
+        </div>
+      </div>
+    </Router>
+  );
+}
+
+export default Index;
