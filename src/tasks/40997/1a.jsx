@@ -1,103 +1,93 @@
-// App.jsx
-import React, { useState, useEffect } from 'react';
-//import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import React, { useState } from "react";
+//import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
-const COLORS = {
-  stories: 'bg-red-100 text-red-800',
-  inProgress: 'bg-blue-100 text-blue-800',
-  peerReview: 'bg-yellow-100 text-yellow-800',
-  inTesting: 'bg-purple-100 text-purple-800',
-  done: 'bg-green-100 text-green-800'
+const initialTasks = {
+  stories: [],
+  inProgress: [],
+  peerReview: [],
+  inTesting: [],
+  done: [],
 };
 
-const initialTasks = [
-  { id: '1', title: 'Example Task', description: 'This is a task in stories', status: 'stories' },
-];
+const colors = {
+  stories: 'bg-red-100',
+  inProgress: 'bg-blue-100',
+  peerReview: 'bg-yellow-100',
+  inTesting: 'bg-purple-100',
+  done: 'bg-green-100',
+};
 
-const App = () => {
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('kanbanTasks');
-    return savedTasks ? JSON.parse(savedTasks) : initialTasks;
-  });
-  const [open, setOpen] = useState(false);
+function App() {
+  const [tasks, setTasks] = useState(initialTasks);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
 
-  useEffect(() => {
-    localStorage.setItem('kanbanTasks', JSON.stringify(tasks));
-  }, [tasks]);
-
   const onDragEnd = (result) => {
-    if (!result.destination) return;
-    
-    const items = Array.from(tasks);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, { ...reorderedItem, status: result.destination.droppableId });
+    const { source, destination } = result;
+    if (!destination) return;
 
-    setTasks(items.map((task, index) => ({ ...task, color: COLORS[task.status] })));
+    const sourceColumn = source.droppableId;
+    const destColumn = destination.droppableId;
+    const task = tasks[sourceColumn][source.index];
+
+    if (sourceColumn !== destColumn) {
+      const newTasks = { ...tasks };
+      newTasks[sourceColumn].splice(source.index, 1);
+      newTasks[destColumn].splice(destination.index, 0, { ...task, color: destColumn });
+      setTasks(newTasks);
+    }
   };
 
-  const addTask = () => {
-    setTasks([...tasks, { ...newTask, id: String(Date.now()), status: 'stories' }]);
-    setOpen(false);
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => {
+    setIsModalOpen(false);
     setNewTask({ title: '', description: '' });
   };
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
+  const handleCreateTask = () => {
+    if (newTask.title) {
+      setTasks(prev => ({
+        ...prev,
+        stories: [...prev.stories, { ...newTask, id: Date.now().toString(), color: 'stories' }]
+      }));
+      closeModal();
+    }
   };
 
-  const columns = ['stories', 'inProgress', 'peerReview', 'inTesting', 'done'];
+  const deleteTask = (id) => {
+    setTasks(prev => ({
+      ...prev,
+      stories: prev.stories.filter(task => task.id !== id)
+    }));
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
-      <h1 className="text-3xl font-bold mb-6 text-center">Kanban Board</h1>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <Input 
-            value={newTask.title} 
-            onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-            placeholder="Task Title" 
-          />
-          <Textarea 
-            className="mt-2"
-            value={newTask.description} 
-            onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-            placeholder="Task Description" 
-          />
-          <DialogFooter>
-            <Button type="button" onClick={addTask}>Add Task</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <DialogTrigger asChild>
-        <Button className="mb-4">Create Task</Button>
-      </DialogTrigger>
-
+    <div className="container mx-auto p-4">
+      <Button onClick={openModal}>Create Task</Button>
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {columns.map(status => (
-            <Droppable key={status} droppableId={status}>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+          {Object.keys(tasks).map(column => (
+            <Droppable key={column} droppableId={column}>
               {(provided) => (
                 <div 
                   {...provided.droppableProps} 
                   ref={provided.innerRef}
-                  className="rounded bg-white shadow-md p-4 transition-all duration-300"
+                  className={`p-4 rounded-lg ${colors[column]}`}
                 >
-                  <h2 className="text-xl font-semibold mb-4">{status.replace(/([A-Z])/g, ' $1').trim()}</h2>
-                  {tasks.filter(task => task.status === status).map((task, index) => (
+                  <h2 className="text-lg font-semibold mb-2">{column.replace(/([A-Z])/g, ' $1').trim()}</h2>
+                  {tasks[column].map((task, index) => (
                     <Draggable key={task.id} draggableId={task.id} index={index}>
                       {(provided) => (
                         <div 
                           ref={provided.innerRef} 
                           {...provided.draggableProps} 
                           {...provided.dragHandleProps}
-                          className={`${task.color} mb-2 p-3 rounded shadow-sm transition-colors duration-300`}
+                          className={`mb-2 ${colors[task.color]} p-2 rounded shadow-sm`}
                         >
                           <Card>
                             <CardHeader>
@@ -106,8 +96,10 @@ const App = () => {
                             <CardContent>
                               <p>{task.description}</p>
                             </CardContent>
-                            {status === 'stories' && (
-                              <Button variant="destructive" size="sm" onClick={() => deleteTask(task.id)}>Delete</Button>
+                            {column === 'stories' && (
+                              <Button variant="destructive" size="icon" onClick={() => deleteTask(task.id)}>
+                                Delete
+                              </Button>
                             )}
                           </Card>
                         </div>
@@ -121,8 +113,29 @@ const App = () => {
           ))}
         </div>
       </DragDropContext>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="title">Title</Label>
+              <Input id="title" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Input id="description" value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={handleCreateTask}>Create Task</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
+}
 
 export default App;

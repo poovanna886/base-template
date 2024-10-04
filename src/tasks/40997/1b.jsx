@@ -1,132 +1,125 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from 'react';
+//import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useTransition } from 'react';
 
 const COLORS = {
-  'stories': 'bg-red-100 border-red-500',
-  'in progress': 'bg-blue-100 border-blue-500',
-  'peer review': 'bg-yellow-100 border-yellow-500',
-  'in testing': 'bg-purple-100 border-purple-500',
-  'done': 'bg-green-100 border-green-500',
+  'stories': 'bg-red-100',
+  'in progress': 'bg-blue-100',
+  'peer review': 'bg-yellow-100',
+  'in testing': 'bg-purple-100',
+  'done': 'bg-green-100'
 };
 
-const TaskCard = ({ task, column, onDelete, onMove }) => {
-  const [, startTransition] = useTransition();
-
-  const handleDragStart = (e) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id: task.id, from: column }));
+function TaskCard({ task, column, onMove, onDelete }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const startDrag = (e) => {
+    e.dataTransfer.setData('text', JSON.stringify({ id: task.id, from: column }));
+    setIsDragging(true);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const data = JSON.parse(e.dataTransfer.getData('text'));
-    if (data.from !== column) {
-      startTransition(() => {
-        onMove(data.id, data.from, column);
-      });
-    }
-  };
+  const endDrag = () => setIsDragging(false);
 
   return (
-    <Card className={`mb-4 transition-all duration-300 ease-in-out ${COLORS[column]}`} onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+    <Card className={`${COLORS[column]} ${isDragging ? 'opacity-50' : ''} mb-2 p-2 cursor-move`} draggable onDragStart={startDrag} onDragEnd={endDrag}>
       <CardHeader>
         <CardTitle>{task.title}</CardTitle>
       </CardHeader>
       <CardContent>
         <CardDescription>{task.description}</CardDescription>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        {column === 'stories' && <Button variant="destructive" onClick={() => onDelete(task.id)}>Delete</Button>}
-      </CardFooter>
+      {column === 'stories' && <CardFooter><Button onClick={() => onDelete(task.id)} variant="destructive">Delete</Button></CardFooter>}
     </Card>
   );
-};
+}
 
-function App() {
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('kanbanTasks');
-    return savedTasks ? JSON.parse(savedTasks) : {};
-  });
-  const [open, setOpen] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', description: '' });
-
-  useEffect(() => {
-    localStorage.setItem('kanbanTasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  const handleCreateTask = () => {
-    const id = Date.now().toString();
-    setTasks(prev => ({
-      ...prev,
-      [id]: { ...newTask, id, column: 'stories' }
-    }));
-    setNewTask({ title: '', description: '' });
-    setOpen(false);
+function Column({ name, tasks, onDrop, onDelete }) {
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const data = JSON.parse(e.dataTransfer.getData('text'));
+    onDrop(data, name);
   };
 
-  const handleMoveTask = (id, from, to) => {
+  return (
+    <div onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} className="flex-1 min-w-0 p-2">
+      <h2 className="text-lg font-bold mb-2">{name}</h2>
+      {tasks.map(task => <TaskCard key={task.id} task={task} column={name} onMove={onDrop} onDelete={onDelete} />)}
+    </div>
+  );
+}
+
+function TaskModal({ isOpen, onClose, onSubmit }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add New Task</DialogTitle>
+        </DialogHeader>
+        <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="mb-2" />
+        <Textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} />
+        <DialogFooter>
+          <Button type="submit" onClick={() => { onSubmit({ title, description }); onClose(); }}>Create Task</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function App() {
+  const [tasks, setTasks] = useState({
+    'stories': [],
+    'in progress': [],
+    'peer review': [],
+    'in testing': [],
+    'done': []
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleCreateTask = (task) => {
+    setTasks(prev => ({
+      ...prev,
+      'stories': [...prev['stories'], { id: Date.now(), ...task }]
+    }));
+  };
+
+  const handleMoveTask = ({ id, from }, to) => {
     setTasks(prev => {
-      const task = prev[id];
-      return { ...prev, [id]: { ...task, column: to } };
+      const taskToMove = prev[from].find(task => task.id === id);
+      return {
+        ...prev,
+        [from]: prev[from].filter(task => task.id !== id),
+        [to]: [...prev[to], taskToMove]
+      };
     });
   };
 
   const handleDeleteTask = (id) => {
-    setTasks(prev => {
-      const { [id]: _, ...rest } = prev;
-      return rest;
-    });
+    setTasks(prev => ({
+      ...prev,
+      'stories': prev['stories'].filter(task => task.id !== id)
+    }));
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
-      <h1 className="text-3xl font-bold mb-6 text-center">Kanban Board</h1>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button className="mb-4">Create Task</Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-          </DialogHeader>
-          <Input 
-            value={newTask.title} 
-            onChange={e => setNewTask(prev => ({...prev, title: e.target.value}))} 
-            placeholder="Task Title" 
-            className="mb-2"
+    <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
+      <Button asChild>
+        <DialogTrigger onClick={() => setIsModalOpen(true)}>Create Task</DialogTrigger>
+      </Button>
+      <TaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleCreateTask} />
+      <div className="flex flex-col sm:flex-row gap-4 mt-4">
+        {Object.keys(tasks).map(column => (
+          <Column 
+            key={column} 
+            name={column} 
+            tasks={tasks[column]} 
+            onDrop={handleMoveTask} 
+            onDelete={handleDeleteTask} 
           />
-          <Textarea 
-            value={newTask.description} 
-            onChange={e => setNewTask(prev => ({...prev, description: e.target.value}))} 
-            placeholder="Task Description"
-          />
-          <Button onClick={handleCreateTask} className="mt-4">Add Task</Button>
-        </DialogContent>
-      </Dialog>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {['stories', 'in progress', 'peer review', 'in testing', 'done'].map(column => (
-          <div key={column} className="flex flex-col bg-white p-4 rounded-lg shadow-lg transition-all duration-300 ease-in-out">
-            <h2 className="text-xl font-semibold mb-2 capitalize">{column.replace(' ', ' ')}</h2>
-            {Object.values(tasks).filter(task => task.column === column).map(task => (
-              <div key={task.id} draggable onDragStart={handleDragStart}>
-                <TaskCard 
-                  task={task} 
-                  column={column} 
-                  onDelete={handleDeleteTask} 
-                  onMove={handleMoveTask}
-                />
-              </div>
-            ))}
-          </div>
         ))}
       </div>
     </div>
   );
 }
-
-export default App;
